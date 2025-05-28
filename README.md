@@ -171,6 +171,4 @@ di mana:
 - Rekomendasi yang dihasilkan memiliki skor cosine similarity tinggi (misal > 0.8), menunjukkan film-film yang direkomendasikan sangat relevan secara konten dan genre dengan film input.  
 - Kedua pendekatan ini saling melengkapi: Collaborative Filtering menangkap preferensi pengguna dari data interaksi, sementara Content-Based Filtering menyediakan rekomendasi saat data interaksi kurang atau untuk film baru (cold start).
 
----
-
 Penggunaan RMSE sangat tepat untuk mengukur performa model prediksi rating pada Collaborative Filtering, sedangkan evaluasi Content-Based Filtering lebih mengandalkan analisis kualitas rekomendasi berdasarkan kemiripan konten (cosine similarity) dan relevansi hasil rekomendasi.
