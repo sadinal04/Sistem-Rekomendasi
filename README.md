@@ -47,29 +47,44 @@ Dengan mengembangkan kedua pendekatan ini secara terpisah, proyek ini dapat meng
 
 ## Data Understanding
 
-Dataset yang digunakan dalam proyek ini merupakan MovieLens (ml-latest), yang merupakan dataset populer untuk penelitian sistem rekomendasi. Dataset ini diperoleh dari Kaggle melalui tautan berikut: [MovieLens Dataset di Kaggle](https://www.kaggle.com/datasets/kanametov/movies-recomendation-system/data). Dataset ini berisi lebih dari 22 juta rating dari sekitar 247 ribu pengguna terhadap lebih dari 34 ribu film, yang dikumpulkan antara tahun 1995 hingga 2016.
+Dataset yang digunakan dalam proyek ini merupakan **MovieLens (ml-latest)**, yang merupakan dataset populer untuk penelitian sistem rekomendasi. Dataset ini diperoleh dari Kaggle melalui tautan berikut: [MovieLens Dataset di Kaggle](https://www.kaggle.com/datasets/kanametov/movies-recomendation-system/data). Dataset ini berisi lebih dari 22 juta rating dari sekitar 247 ribu pengguna terhadap lebih dari 34 ribu film, yang dikumpulkan antara tahun 1995 hingga 2016.
 
-Dataset terdiri dari beberapa file utama:
-- `ratings.csv`: berisi data rating film oleh pengguna dengan kolom `userId`, `movieId`, `rating`, dan `timestamp`.  
-- `movies.csv`: berisi informasi film seperti `movieId`, `title`, dan `genres`.  
-- `tags.csv`: berisi metadata tagging film oleh pengguna.  
-- `links.csv`: berisi penghubung ID film ke database lain seperti IMDb dan TMDb.
+Dataset terdiri dari beberapa file utama, pada proyek ini saya menggunakan dua file dataset yaitu:
+- **`ratings.csv`**: berisi data rating film oleh pengguna dengan kolom `userId`, `movieId`, `rating`, dan `timestamp`.
+- **`movies.csv`**: berisi informasi film seperti `movieId`, `title`, dan `genres`.
+
+### Jumlah Baris dan Kolom Dataset
+
+Dataset yang digunakan terdiri dari beberapa file dengan jumlah baris dan kolom sebagai berikut:
+- **`ratings.csv`**: Memiliki **22,884,377 baris** dan **4 kolom** (`userId`, `movieId`, `rating`, `timestamp`).
+- **`movies.csv`**: Memiliki **34,208 baris** dan **3 kolom** (`movieId`, `title`, `genres`).
+
+### Kondisi Data (Missing Values)
+
+Sebelum dilakukan preprocessing, data pada **`ratings.csv`** dan **`movies.csv`** telah diperiksa untuk memastikan kualitasnya. Berikut adalah hasil pemeriksaan missing values pada dataset:
+
+1. **`ratings.csv`**:
+   - Kolom **`userId`**, **`movieId`**, **`rating`**, dan **`timestamp`** tidak memiliki missing values. Semua kolom memiliki **0 missing values**.
+   
+2. **`movies.csv`**:
+   - Kolom **`movieId`**, **`title`**, dan **`genres`** tidak memiliki missing values. Semua kolom memiliki **0 missing values**.
 
 ### Variabel dan Fitur Data
 
 - **userId**: ID unik untuk tiap pengguna yang memberikan rating.  
 - **movieId**: ID unik film, sebagai kunci untuk menghubungkan data antar file.  
-- **rating**: nilai rating film dari pengguna dalam skala 0.5 hingga 5.0, dengan interval setengah bintang.  
-- **timestamp**: waktu rating diberikan (dalam detik sejak epoch).  
-- **title**: judul film dengan tahun rilis, membantu identifikasi dan visualisasi.  
-- **genres**: daftar genre film yang dipisahkan dengan tanda pipe (`|`), misalnya "Action|Adventure|Comedy".
+- **rating**: Nilai rating film dari pengguna dalam skala 0.5 hingga 5.0, dengan interval setengah bintang.  
+- **timestamp**: Waktu rating diberikan (dalam detik sejak epoch).  
+- **title**: Judul film dengan tahun rilis, membantu identifikasi dan visualisasi.  
+- **genres**: Daftar genre film yang dipisahkan dengan tanda pipe (`|`), misalnya "Action|Adventure|Comedy".
 
 ### Eksplorasi Data dan Insight
 
 - **Distribusi Rating**  
-  Mayoritas rating berada pada rentang 3 sampai 4 bintang, menunjukkan kecenderungan pengguna memberi nilai sedang hingga baik.  
+  Mayoritas rating berada pada rentang 3 sampai 4 bintang, menunjukkan kecenderungan pengguna memberi nilai sedang hingga baik. Ini menunjukkan bahwa sebagian besar film yang direkomendasikan cenderung memiliki rating positif, namun tidak terlalu ekstrem.
+  
 - **Distribusi Genre Film**  
-  Genre Drama, Comedy, dan Action mendominasi jumlah film di dataset, menandakan genre populer yang banyak diminati.
+  Genre **Drama**, **Comedy**, dan **Action** mendominasi jumlah film di dataset, menandakan genre populer yang banyak diminati oleh pengguna. Hal ini juga mencerminkan pola umum dalam pilihan film yang sering disukai oleh pengguna.
 
 ## Data Preparation
 
@@ -77,41 +92,45 @@ Pada tahap ini dilakukan beberapa proses persiapan data untuk memastikan data ya
 
 ### Tahapan Data Preparation yang Dilakukan
 
-1. **Pengisian dan Penanganan Nilai Kosong**  
-   Pada kolom `genres` di file movies.csv, nilai kosong (missing values) diisi dengan string kosong (`''`) untuk menghindari error saat pemrosesan fitur genre.
+1. **Pembuatan Fitur 'Description'**  
+   Sebuah fitur baru, yaitu **'description'**, dibuat dengan menggabungkan kolom `title` dan `genres` untuk menghasilkan deskripsi film yang lebih lengkap. Kolom `genres` yang berisi genre film dipisahkan oleh tanda pipe (`|`), sedangkan kolom `title` berisi judul film. Fitur ini berguna untuk meningkatkan pemahaman model mengenai konten film.
 
-2. **Konversi dan Transformasi Fitur Genre**  
-   Kolom `genres` yang berupa string dengan genre yang dipisahkan tanda pipe (`|`) diubah menjadi list genre per film. Selanjutnya dilakukan one-hot encoding menggunakan `MultiLabelBinarizer` agar genre dapat direpresentasikan dalam bentuk vektor numerik yang dapat digunakan dalam model machine learning.
+2. **Penggunaan TfidfVectorizer pada 'Description'**  
+   Fitur **'description'** yang sudah dibuat kemudian diproses menggunakan **TfidfVectorizer** untuk mengubah teks menjadi matriks fitur numerik. Ini memungkinkan model untuk memanfaatkan informasi yang terkandung dalam teks deskripsi film dan memahami hubungan antar film berdasarkan kata-kata yang ada pada deskripsi tersebut.
 
-3. **Mapping User dan Movie ke Indeks Numerik**  
-   Karena model menggunakan embedding layer yang mengharuskan input berupa indeks numerik, `userId` dan `movieId` dari dataset dipetakan menjadi indeks berturut-turut mulai dari 0. Hal ini memudahkan pemodelan dan mengoptimalkan penggunaan memori.
+3. **Konversi dan Transformasi Fitur Genre**  
+   Kolom **`genres`** yang berupa string dengan genre yang dipisahkan tanda pipe (`|`) diubah menjadi list genre per film. Selanjutnya dilakukan **one-hot encoding** menggunakan `MultiLabelBinarizer` agar genre dapat direpresentasikan dalam bentuk vektor numerik yang dapat digunakan dalam model machine learning.
 
-4. **Normalisasi Rating**  
-   Nilai rating yang awalnya berada di rentang 0.5 hingga 5.0 dinormalisasi ke rentang [0, 1] untuk membantu proses training model menjadi lebih stabil dan mempercepat konvergensi.
+4. **Mapping User dan Movie ke Indeks Numerik**  
+   Karena model menggunakan embedding layer yang mengharuskan input berupa indeks numerik, **`userId`** dan **`movieId`** dari dataset dipetakan menjadi indeks berturut-turut mulai dari 0. Hal ini memudahkan pemodelan dan mengoptimalkan penggunaan memori.
 
 5. **Pembagian Data Train dan Test**  
-   Dataset rating dibagi menjadi data train dan test dengan proporsi 80:20 secara acak, untuk memastikan evaluasi model dilakukan pada data yang belum pernah dilihat selama training.
+   Dataset rating dibagi menjadi data **train** dan **test** dengan proporsi **80:20** secara acak, untuk memastikan evaluasi model dilakukan pada data yang belum pernah dilihat selama training.
+
+6. **Normalisasi Rating**  
+   Nilai rating yang awalnya berada di rentang 0.5 hingga 5.0 dinormalisasi ke rentang [0, 1] untuk membantu proses training model menjadi lebih stabil dan mempercepat konvergensi.
 
 ### Alasan Tahapan Data Preparation
 
-- **Mengatasi missing values** pada fitur genre agar tidak terjadi error saat pengolahan fitur dan model training.  
-- **Representasi numerik fitur genre** dibutuhkan agar data tekstual dapat diproses oleh model neural network.  
-- **Mapping indeks numerik untuk user dan movie** adalah standar dalam pemodelan embedding sehingga input dapat diterima oleh layer embedding secara efisien.  
-- **Normalisasi rating** membantu mencegah gradient yang tidak stabil dan mempercepat proses optimasi selama training.  
+- **Pembuatan fitur 'description'** memberikan informasi tambahan untuk model berbasis konten yang akan memproses data tekstual.
+- **Penggunaan TfidfVectorizer** memungkinkan model untuk memanfaatkan informasi dari kolom deskripsi dan memahami kemiripan antar film berdasarkan kata-kata dalam deskripsi.
+- **Representasi numerik fitur genre** dibutuhkan agar data tekstual dapat diproses oleh model neural network.
+- **Mapping indeks numerik untuk user dan movie** adalah standar dalam pemodelan embedding sehingga input dapat diterima oleh layer embedding secara efisien.
 - **Split train-test** penting untuk melakukan evaluasi yang objektif dan menghindari overfitting pada model.
+- **Normalisasi rating** membantu mencegah gradient yang tidak stabil dan mempercepat proses optimasi selama training.
 
 Tahapan ini memastikan data yang digunakan bersih, konsisten, dan sesuai format yang dibutuhkan oleh model sistem rekomendasi.
 
 ## Modeling
 
-Pada tahap modeling, dua pendekatan sistem rekomendasi dikembangkan secara terpisah untuk menyelesaikan permasalahan dalam memberikan rekomendasi film yang relevan dan personal, yaitu Content-Based Filtering dan Collaborative Filtering berbasis Neural Network.
+Pada tahap modeling, dua pendekatan sistem rekomendasi dikembangkan secara terpisah untuk menyelesaikan permasalahan dalam memberikan rekomendasi film yang relevan dan personal, yaitu **Content-Based Filtering** dan **Collaborative Filtering** berbasis **Neural Network**.
 
 ### 1. Content-Based Filtering
 
 Pendekatan ini menggunakan fitur konten film seperti genre dan deskripsi untuk merekomendasikan film yang memiliki kemiripan tinggi dengan film yang disukai pengguna. Prosesnya meliputi:
 
-- Ekstraksi fitur film dengan one-hot encoding pada genre dan representasi teks deskripsi menggunakan TF-IDF.  
-- Penghitungan similarity antar film menggunakan cosine similarity.  
+- Ekstraksi fitur film dengan **one-hot encoding** pada genre dan representasi teks deskripsi menggunakan **TF-IDF** yang dilakukan pada Data Preparation.  
+- Penghitungan similarity antar film menggunakan **cosine similarity**.  
 - Rekomendasi diberikan berdasarkan film yang paling mirip dengan preferensi pengguna.
 
 **Kelebihan:**  
@@ -122,14 +141,42 @@ Pendekatan ini menggunakan fitur konten film seperti genre dan deskripsi untuk m
 - Terbatas pada fitur yang tersedia dan tidak dapat menangkap pola preferensi kompleks pengguna.  
 - Cenderung merekomendasikan film yang serupa dan kurang bervariasi.
 
+### Top-N Recommendation Output (Content-Based Filtering)
+
+**Contoh Hasil Top-20 Recommendation (Content-Based Filtering)**  
+Berikut adalah contoh rekomendasi film untuk **'Toy Story (1995)'** menggunakan **Content-Based Filtering** berdasarkan kemiripan konten:
+
+1. **Toy Story 2 (1999)** (Similarity: 0.9786)  
+2. **Toy Story Toons: Small Fry (2011)** (Similarity: 0.9300)  
+3. **Toy Story Toons: Hawaiian Vacation (2011)** (Similarity: 0.9295)  
+4. **Wild, The (2006)** (Similarity: 0.9030)  
+5. **Monsters, Inc. (2001)** (Similarity: 0.8971)  
+6. **Toy Story 3 (2010)** (Similarity: 0.8966)  
+7. **Shrek the Third (2007)** (Similarity: 0.8936)  
+8. **Turbo (2013)** (Similarity: 0.8930)  
+9. **Aladdin (1992)** (Similarity: 0.8915)  
+10. **Boxtrolls, The (2014)** (Similarity: 0.8901)  
+11. **Antz (1998)** (Similarity: 0.8891)  
+12. **Brother Bear 2 (2006)** (Similarity: 0.8876)  
+13. **The Magic Crystal (2011)** (Similarity: 0.8868)  
+14. **Tale of Despereaux, The (2008)** (Similarity: 0.8840)  
+15. **Emperor's New Groove, The (2000)** (Similarity: 0.8805)  
+16. **Adventures of Rocky and Bullwinkle, The (2000)** (Similarity: 0.8774)  
+17. **DuckTales: The Movie - Treasure of the Lost Lamp (1990)** (Similarity: 0.8731)  
+18. **Scooby-Doo! Mask of the Blue Falcon (2012)** (Similarity: 0.8730)  
+19. **Asterix and the Vikings (Astérix et les Vikings) (2006)** (Similarity: 0.8626)  
+20. **Home (2015)** (Similarity: 0.8299)  
+
+Top-N rekomendasi dihasilkan berdasarkan **cosine similarity** antar film, yang menunjukkan seberapa mirip film yang disukai pengguna dengan film lain.
+
 ### 2. Collaborative Filtering dengan Neural Network
 
-Pendekatan ini menggunakan data rating pengguna untuk mempelajari preferensi laten melalui embedding user dan film, serta mengintegrasikan fitur genre film sebagai input tambahan untuk memperkaya representasi film. Model neural network terdiri dari:
+Pendekatan ini menggunakan data rating pengguna untuk mempelajari preferensi laten melalui **embedding user dan film**, serta mengintegrasikan fitur genre film sebagai input tambahan untuk memperkaya representasi film. Model neural network terdiri dari:
 
-- Embedding layer untuk user dan film.  
+- **Embedding layer** untuk user dan film.  
 - Input fitur genre sebagai vektor dense.  
-- Beberapa lapisan fully connected dengan dropout untuk menghindari overfitting.  
-- Output layer yang memprediksi rating film oleh pengguna.
+- Beberapa lapisan **fully connected** dengan **dropout** untuk menghindari overfitting.  
+- **Output layer** yang memprediksi rating film oleh pengguna.
 
 **Kelebihan:**  
 - Dapat menangkap pola interaksi kompleks antara pengguna dan film.  
@@ -139,36 +186,89 @@ Pendekatan ini menggunakan data rating pengguna untuk mempelajari preferensi lat
 - Membutuhkan data interaksi pengguna yang cukup lengkap.  
 - Model lebih kompleks dan memerlukan waktu training lebih lama.
 
-### Top-N Recommendation Output
+### Top-N Recommendation Output (Collaborative Filtering)
 
 Setelah model dilatih, sistem menghasilkan rekomendasi film berupa daftar Top-N film dengan prediksi rating tertinggi untuk setiap pengguna, yang dapat langsung digunakan sebagai saran film yang sesuai dengan preferensi masing-masing pengguna.
 
+**Contoh Hasil Top-5 Recommendation (Collaborative Filtering)**  
+Berikut adalah contoh rekomendasi film untuk **User ID 1** menggunakan **Collaborative Filtering** berdasarkan **prediksi rating** yang dihasilkan oleh model:
+
+| **Title**                                | **Genres**                                | **Predicted Rating** |
+|------------------------------------------|-------------------------------------------|----------------------|
+| Shawshank Redemption, The (1994)         | [Crime, Drama]                            | 0.830508             |
+| Schindler's List (1993)                  | [Drama, War]                              | 0.826420             |
+| Civil War, The (1990)                    | [Documentary, War]                        | 0.820559             |
+| Duck Amuck (1953)                        | [Animation, Children, Comedy]             | 0.817200             |
+| Can't Change the Meeting Place (1979)    | [Action, Crime]                           | 0.813960             |
+
+**Top-N recommendation** dihasilkan berdasarkan **prediksi rating** oleh model **Collaborative Filtering**, yang mengindikasikan film-film yang memiliki kemungkinan besar untuk disukai oleh **User ID 1** berdasarkan data interaksi rating pengguna sebelumnya.
+
 ## Evaluation
 
-Pada tahap evaluasi, digunakan metrik **Root Mean Squared Error (RMSE)** untuk mengukur akurasi prediksi rating yang dihasilkan oleh model collaborative filtering. RMSE menghitung akar kuadrat dari rata-rata kuadrat selisih antara nilai rating asli dengan prediksi model, sehingga memberikan gambaran seberapa dekat prediksi model dengan data nyata.
+Pada tahap evaluasi, evaluasi dilakukan menggunakan **Precision@K** Untuk **Content-Based Filtering**. Metrik **Root Mean Squared Error (RMSE)** digunakan untuk mengukur akurasi prediksi rating yang dihasilkan oleh model **Collaborative Filtering**. RMSE menghitung akar kuadrat dari rata-rata kuadrat selisih antara nilai rating asli dengan prediksi model, sehingga memberikan gambaran seberapa dekat prediksi model dengan data nyata.
 
-### Formula RMSE
+### 1. Content-Based Filtering Evaluation
+
+Untuk **Content-Based Filtering**, evaluasi dilakukan menggunakan **Precision@K** sebagai metrik utama. Pendekatan ini merekomendasikan film berdasarkan kemiripan konten, seperti genre dan deskripsi film. **Precision@K** mengukur seberapa banyak film yang relevan berada di dalam **Top K rekomendasi** yang dihasilkan oleh sistem.
+
+#### **Precision@K dengan Threshold 0.7**
+
+**Threshold 0.7** digunakan untuk **menentukan relevansi** film dalam perhitungan **Precision@K**. Dalam hal ini, **cosine similarity** antar film dihitung untuk menentukan seberapa mirip film yang direkomendasikan dengan film input. Film yang memiliki **cosine similarity lebih besar dari 0.7** dianggap **relevan** dan dimasukkan dalam perhitungan **Precision@K**. 
+
+**Contoh Hasil Top-N Recommendation (Content-Based Filtering)**  
+Berikut adalah contoh rekomendasi film untuk **'Toy Story (1995)'** menggunakan **Content-Based Filtering** berdasarkan kemiripan konten dengan **threshold 0.7** untuk **cosine similarity**:
+
+| **Rank** | **Title**                        | **Similarity** |
+|----------|----------------------------------|----------------|
+| 1        | Toy Story 2 (1999)               | 0.9786         |
+| 2        | Toy Story Toons: Small Fry (2011) | 0.9300         |
+| 3        | Toy Story Toons: Hawaiian Vacation (2011) | 0.9295   |
+| 4        | Wild, The (2006)                 | 0.9030         |
+| 5        | Monsters, Inc. (2001)           | 0.8971         |
+| 6        | Toy Story 3 (2010)              | 0.8966         |
+| 7        | Shrek the Third (2007)          | 0.8936         |
+| 8        | Turbo (2013)                    | 0.8930         |
+| 9        | Aladdin (1992)                  | 0.8915         |
+| 10       | Boxtrolls, The (2014)           | 0.8901         |
+| 11       | Antz (1998)                     | 0.8891         |
+| 12       | Brother Bear 2 (2006)           | 0.8876         |
+| 13       | The Magic Crystal (2011)        | 0.8868         |
+| 14       | Tale of Despereaux, The (2008)  | 0.8840         |
+| 15       | Emperor's New Groove, The (2000)| 0.8805         |
+| 16       | Adventures of Rocky and Bullwinkle, The (2000) | 0.8774 |
+| 17       | DuckTales: The Movie - Treasure of the Lost Lamp (1990) | 0.8731 |
+| 18       | Scooby-Doo! Mask of the Blue Falcon (2012) | 0.8730 |
+| 19       | Asterix and the Vikings (Astérix et les Vikings) (2006) | 0.8626 |
+| 20       | Home (2015)                     | 0.8299         |
+
+**Precision@20: 1.0000** menunjukkan bahwa semua 20 film yang direkomendasikan sangat relevan berdasarkan kemiripan konten.
+
+### 2. Collaborative Filtering Evaluation
+
+Untuk **Collaborative Filtering**, evaluasi dilakukan menggunakan **Root Mean Squared Error (RMSE)**, yang mengukur akurasi prediksi rating berdasarkan data interaksi pengguna dengan film. RMSE memberikan gambaran seberapa besar kesalahan dalam prediksi rating yang diberikan oleh model dibandingkan dengan rating asli yang diberikan oleh pengguna.
+
+#### **Formula RMSE**
 
 $$
 \text{RMSE} = \sqrt{\frac{1}{N} \sum_{i=1}^N (\hat{y}_i - y_i)^2}
 $$
 
 di mana:  
-- \(\hat{y}_i\) adalah prediksi rating untuk sampel ke-\(i\)  
-- \(y_i\) adalah rating asli untuk sampel ke-\(i\)  
-- \(N\) adalah jumlah total sampel yang dievaluasi
+- $\(\hat{y}_i\)$ adalah prediksi rating untuk sampel ke-\(i\)  
+- $\(y_i\)$ adalah rating asli untuk sampel ke-\(i\)  
+- $\(N\)$ adalah jumlah total sampel yang dievaluasi
 
-### Penjelasan Cara Kerja RMSE
+#### **Hasil Evaluasi RMSE**
+- Model **Collaborative Filtering** yang dibangun berhasil mencapai **RMSE sekitar 0.18** pada data validasi, yang menunjukkan prediksi rating sangat mendekati rating asli pengguna dan model sudah cukup baik (berdasarkan training 5 epoch dengan RMSE validasi sekitar 0.18).
 
-- RMSE memberikan bobot lebih besar pada kesalahan prediksi yang besar karena menggunakan kuadrat selisih.  
-- Nilai RMSE yang lebih kecil menunjukkan model dengan prediksi yang lebih akurat.  
-- RMSE cocok digunakan pada kasus prediksi nilai kontinu seperti rating film.
+**Kelebihan:**  
+- Dapat menangkap pola interaksi kompleks antara pengguna dan film.
+- Memberikan rekomendasi yang lebih personal dan adaptif berdasarkan data nyata.
 
-### Hasil Evaluasi Proyek
+**Kekurangan:**  
+- Membutuhkan data interaksi pengguna yang cukup lengkap.
+- Model lebih kompleks dan memerlukan waktu training lebih lama.
 
-- Model **Collaborative Filtering** yang dibangun berhasil mencapai RMSE sekitar **0.18** pada data validasi, yang menunjukkan prediksi rating sangat mendekati rating asli pengguna dan model sudah cukup baik (berdasarkan training 5 epoch dengan RMSE val sekitar 0.18).  
-- Sedangkan model **Content-Based Filtering** tidak menggunakan metrik RMSE karena tidak memprediksi rating, melainkan merekomendasikan film berdasarkan kemiripan fitur konten. Evaluasi pada metode ini dilakukan dengan melihat **nilai cosine similarity** antara film input dengan film rekomendasi.  
-- Rekomendasi yang dihasilkan memiliki skor cosine similarity tinggi (misal > 0.8), menunjukkan film-film yang direkomendasikan sangat relevan secara konten dan genre dengan film input.  
-- Kedua pendekatan ini saling melengkapi: Collaborative Filtering menangkap preferensi pengguna dari data interaksi, sementara Content-Based Filtering menyediakan rekomendasi saat data interaksi kurang atau untuk film baru (cold start).
-
-Penggunaan RMSE sangat tepat untuk mengukur performa model prediksi rating pada Collaborative Filtering, sedangkan evaluasi Content-Based Filtering lebih mengandalkan analisis kualitas rekomendasi berdasarkan kemiripan konten (cosine similarity) dan relevansi hasil rekomendasi.
+### Kesimpulan
+- **Content-Based Filtering** menggunakan **Precision@K** dengan threshold **0.7** untuk **cosine similarity** sebagai metrik evaluasi, yang menunjukkan bahwa semua rekomendasi yang diberikan sangat relevan dengan film input berdasarkan kemiripan konten.
+- **Collaborative Filtering** menggunakan **RMSE** untuk mengukur kualitas prediksi rating yang diberikan oleh model.
