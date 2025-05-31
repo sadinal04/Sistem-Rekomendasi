@@ -59,15 +59,15 @@ Dataset yang digunakan terdiri dari beberapa file dengan jumlah baris dan kolom 
 - **`ratings.csv`**: Memiliki **22,884,377 baris** dan **4 kolom** (`userId`, `movieId`, `rating`, `timestamp`).
 - **`movies.csv`**: Memiliki **34,208 baris** dan **3 kolom** (`movieId`, `title`, `genres`).
 
-### Kondisi Data (Missing Values)
+### Kondisi Data (Missing Values & Duplicate)
 
-Sebelum dilakukan preprocessing, data pada **`ratings.csv`** dan **`movies.csv`** telah diperiksa untuk memastikan kualitasnya. Berikut adalah hasil pemeriksaan missing values pada dataset:
+Sebelum dilakukan preprocessing, data pada **`ratings.csv`** dan **`movies.csv`** telah diperiksa untuk memastikan kualitasnya. Berikut adalah hasil pemeriksaan missing values dan duplikasi pada dataset:
 
 1. **`ratings.csv`**:
-   - Kolom **`userId`**, **`movieId`**, **`rating`**, dan **`timestamp`** tidak memiliki missing values. Semua kolom memiliki **0 missing values**.
+   - Kolom **`userId`**, **`movieId`**, **`rating`**, dan **`timestamp`** tidak memiliki missing values. Semua kolom memiliki **0 missing values** dan **0 Duplicate**.
    
 2. **`movies.csv`**:
-   - Kolom **`movieId`**, **`title`**, dan **`genres`** tidak memiliki missing values. Semua kolom memiliki **0 missing values**.
+   - Kolom **`movieId`**, **`title`**, dan **`genres`** tidak memiliki missing values. Semua kolom memiliki **0 missing values** dan **0 Duplicate**.
 
 ### Variabel dan Fitur Data
 
@@ -88,56 +88,164 @@ Sebelum dilakukan preprocessing, data pada **`ratings.csv`** dan **`movies.csv`*
 
 ## Data Preparation
 
-Pada tahap ini dilakukan beberapa proses persiapan data untuk memastikan data yang digunakan sudah bersih, terstruktur, dan siap digunakan dalam pemodelan sistem rekomendasi.
+Pada tahap ini, dilakukan beberapa proses persiapan data untuk memastikan data yang digunakan sudah bersih, terstruktur, dan siap digunakan dalam pemodelan sistem rekomendasi. Data preparation dilakukan secara terpisah untuk **Content-Based Filtering** dan **Collaborative Filtering** dengan tahapan yang berbeda sesuai kebutuhan masing-masing pendekatan.
 
-### Tahapan Data Preparation yang Dilakukan
+### Content-Based Filtering Data Preparation
 
-1. **Pembuatan Fitur 'Description'**  
-   Sebuah fitur baru, yaitu **'description'**, dibuat dengan menggabungkan kolom `title` dan `genres` untuk menghasilkan deskripsi film yang lebih lengkap. Kolom `genres` yang berisi genre film dipisahkan oleh tanda pipe (`|`), sedangkan kolom `title` berisi judul film. Fitur ini berguna untuk meningkatkan pemahaman model mengenai konten film.
+#### 1. Pembuatan Fitur 'Description'
+Sebuah fitur baru, yaitu **'description'**, dibuat dengan menggabungkan kolom **`title`** dan **`genres`** untuk menghasilkan deskripsi film yang lebih lengkap. Fitur ini berguna untuk meningkatkan pemahaman model mengenai konten film dan akan digunakan dalam **Content-Based Filtering**.
 
-2. **Penggunaan TfidfVectorizer pada 'Description'**  
-   Fitur **'description'** yang sudah dibuat kemudian diproses menggunakan **TfidfVectorizer** untuk mengubah teks menjadi matriks fitu## Data Preparation
+```python
+movies['description'] = movies['title'] + " is a movie in genres " + movies['genres']
+```
 
-Pada tahap ini, dilakukan beberapa proses persiapan data untuk memastikan data yang digunakan sudah bersih, terstruktur, dan siap digunakan dalam pemodelan sistem rekomendasi.
+#### 2. Preprocessing dan Transformasi Fitur Genre
+Langkah-langkah preprocessing genre dilakukan sebagai berikut:
 
-### Tahapan Data Preparation yang Dilakukan
+##### a. Konversi Genre dari String ke List
+Kolom **`genres`** yang berupa string dengan genre yang dipisahkan tanda pipe (`|`) diubah menjadi **list** genre per film untuk memudahkan pemrosesan selanjutnya.
 
-1. **Pembuatan Fitur 'Description'**  
-   Sebuah fitur baru, yaitu **'description'**, dibuat dengan menggabungkan kolom **`title`** dan **`genres`** untuk menghasilkan deskripsi film yang lebih lengkap. Kolom **`genres`** yang berisi genre film dipisahkan oleh tanda pipe (`|`), sedangkan kolom **`title`** berisi judul film. Fitur ini berguna untuk meningkatkan pemahaman model mengenai konten film, dan akan digunakan dalam **Content-Based Filtering**.
+```python
+movies['genres'] = movies['genres'].apply(lambda x: x.split('|') if x else [])
+```
 
-2. **Penggunaan TfidfVectorizer pada 'Description'**  
-   Fitur **'description'** yang sudah dibuat kemudian diproses menggunakan **TfidfVectorizer** untuk mengubah teks deskripsi menjadi representasi numerik. TF-IDF (Term Frequency-Inverse Document Frequency) digunakan untuk menghitung skor pentingnya setiap kata dalam deskripsi film. Ini memungkinkan model untuk memanfaatkan informasi yang terkandung dalam teks deskripsi film dan memahami hubungan antar film berdasarkan kata-kata yang ada pada deskripsi tersebut.
+##### b. One-Hot Encoding Genre
+Dilakukan **one-hot encoding** menggunakan **MultiLabelBinarizer** agar genre dapat direpresentasikan dalam bentuk vektor numerik yang dapat digunakan dalam model machine learning.
 
-3. **Konversi dan Transformasi Fitur Genre**  
-   Kolom **`genres`** yang berupa string dengan genre yang dipisahkan tanda pipe (`|`) diubah menjadi **list** genre per film. Selanjutnya dilakukan **one-hot encoding** menggunakan **MultiLabelBinarizer** agar genre dapat direpresentasikan dalam bentuk vektor numerik yang dapat digunakan dalam model machine learning.
+```python
+mlb = MultiLabelBinarizer()
+genre_onehot = pd.DataFrame(mlb.fit_transform(movies['genres']),
+                            columns=mlb.classes_,
+                            index=movies.index)
+```
 
-4. **Penggabungan Fitur One-Hot Encoding Genre dan Matriks TF-IDF Deskripsi**  
-   Setelah proses **one-hot encoding genre** dan **TF-IDF** pada deskripsi, kedua fitur tersebut digabungkan menggunakan **`hstack`** (horizontal stack) untuk membentuk matriks fitur gabungan yang mencakup genre dan deskripsi film. Matriks ini digunakan sebagai input untuk model **Content-Based Filtering**.
+#### 3. Ekstraksi Fitur Deskripsi dengan TF-IDF
+Fitur **'description'** yang sudah dibuat kemudian diproses menggunakan **TfidfVectorizer** untuk mengubah teks deskripsi menjadi representasi numerik. TF-IDF (Term Frequency-Inverse Document Frequency) digunakan untuk menghitung skor pentingnya setiap kata dalam deskripsi film.
 
-5. **Mapping User dan Movie ke Indeks Numerik**  
-   Karena model menggunakan embedding layer yang mengharuskan input berupa indeks numerik, **`userId`** dan **`movieId`** dari dataset dipetakan menjadi indeks berturut-turut mulai dari 0. Hal ini memudahkan pemodelan dan mengoptimalkan penggunaan memori pada model **Collaborative Filtering**.
+```python
+tfidf = TfidfVectorizer(stop_words='english')
+tfidf_matrix = tfidf.fit_transform(movies['description'])
+```
 
-6. **Pembuatan Matriks Genre (genre_feature) untuk Model Collaborative Filtering**  
-   Setelah genre diubah menjadi **one-hot encoding**, matriks **genre_feature** dibuat untuk mencocokkan indeks film dengan genre yang relevan. Matriks ini selanjutnya akan digunakan sebagai input tambahan dalam model **Collaborative Filtering** untuk meningkatkan akurasi rekomendasi.
+#### 4. Penggabungan Fitur Genre dan Deskripsi
+Setelah proses **one-hot encoding genre** dan **TF-IDF** pada deskripsi, kedua fitur tersebut digabungkan menggunakan **`hstack`** (horizontal stack) untuk membentuk matriks fitur gabungan yang mencakup genre dan deskripsi film.
 
-7. **Pembagian Data Train dan Test**  
-   Dataset rating dibagi menjadi data **train** dan **test** dengan proporsi **80:20** secara acak, untuk memastikan evaluasi model dilakukan pada data yang belum pernah dilihat selama training.
+```python
+combined_features = hstack([genre_onehot.values, tfidf_matrix])
+```
 
-8. **Normalisasi Rating**  
-   Nilai rating yang awalnya berada di rentang 0.5 hingga 5.0 dinormalisasi ke rentang [0, 1] untuk membantu proses training model menjadi lebih stabil dan mempercepat konvergensi. Pembagian ini memastikan bahwa rating dapat diproses dalam model dengan cara yang lebih konsisten.
+#### 5. Pembuatan Indeks untuk Pencarian Film
+Dibuat indeks untuk mempermudah pencarian film berdasarkan judul.
+
+```python
+indices = pd.Series(movies.index, index=movies['title'])
+```
+
+#### 6. Perhitungan Cosine Similarity
+Matriks cosine similarity dihitung berdasarkan fitur gabungan untuk mengukur kemiripan antar film.
+
+```python
+cosine_sim = cosine_similarity(combined_features, combined_features)
+```
+
+### Collaborative Filtering Data Preparation
+
+#### 1. Preprocessing Genre untuk Collaborative Filtering
+Serupa dengan Content-Based Filtering, genre diubah menjadi format list dan dilakukan one-hot encoding menggunakan MultiLabelBinarizer.
+
+```python
+movies['genres'] = movies['genres'].apply(lambda x: x.split('|') if x else [])
+mlb = MultiLabelBinarizer()
+genre_encoded = mlb.fit_transform(movies['genres'])
+```
+
+#### 2. Mapping User dan Movie ke Indeks Numerik
+Karena model menggunakan embedding layer yang mengharuskan input berupa indeks numerik, **`userId`** dan **`movieId`** dari dataset dipetakan menjadi indeks berturut-turut mulai dari 0.
+
+```python
+user_ids = ratings['userId'].unique().tolist()
+movie_ids = ratings['movieId'].unique().tolist()
+
+user2user_encoded = {x: i for i, x in enumerate(user_ids)}
+movie2movie_encoded = {x: i for i, x in enumerate(movie_ids)}
+
+ratings['user'] = ratings['userId'].map(user2user_encoded)
+ratings['movie'] = ratings['movieId'].map(movie2movie_encoded)
+```
+
+#### 3. Pembuatan Matriks Genre untuk Model Collaborative Filtering
+Setelah genre diubah menjadi **one-hot encoding**, matriks **genre_feature** dibuat untuk mencocokkan indeks film dengan genre yang relevan. Matriks ini akan digunakan sebagai input tambahan dalam model **Collaborative Filtering**.
+
+```python
+movie_id_reverse = {v: k for k, v in movie2movie_encoded.items()}
+num_genres = genre_encoded.shape[1]
+genre_feature = np.zeros((num_movies, num_genres))
+
+for i in range(num_movies):
+    movie_id = movie_id_reverse[i]
+    idx = movies[movies['movieId'] == movie_id].index[0]
+    genre_feature[i] = genre_encoded[idx]
+```
+
+#### 4. Pembagian Data Train dan Test
+Dataset rating dibagi menjadi data **train** dan **test** dengan proporsi **80:20** secara acak menggunakan `train_test_split` untuk memastikan evaluasi model dilakukan pada data yang belum pernah dilihat selama training.
+
+```python
+train, test = train_test_split(ratings, test_size=0.2, random_state=42)
+```
+
+#### 5. Normalisasi Rating
+Nilai rating yang awalnya berada di rentang 0.5 hingga 5.0 dinormalisasi ke rentang [0, 1] untuk membantu proses training model menjadi lebih stabil dan mempercepat konvergensi.
+
+```python
+min_rating = ratings['rating'].min()
+max_rating = ratings['rating'].max()
+
+train['rating_scaled'] = (train['rating'] - min_rating) / (max_rating - min_rating)
+test['rating_scaled'] = (test['rating'] - min_rating) / (max_rating - min_rating)
+```
+
+#### 6. Penyiapan Data Genre untuk Training dan Testing
+Genre feature disiapkan untuk data train dan test sesuai dengan indeks movie yang ada pada masing-masing dataset.
+
+```python
+train_genre = genre_feature[train['movie'].values]
+test_genre = genre_feature[test['movie'].values]
+```
 
 ### Alasan Tahapan Data Preparation
 
-- **Pembuatan fitur 'description'** memberikan informasi tambahan untuk model berbasis konten yang akan memproses data tekstual, memungkinkan pemodelan berdasarkan kemiripan konten (genre dan deskripsi film).
-- **Penggunaan TfidfVectorizer** memungkinkan model untuk memanfaatkan informasi dari kolom deskripsi dan memahami kemiripan antar film berdasarkan kata-kata dalam deskripsi, sehingga meningkatkan kualitas rekomendasi berbasis konten.
-- **Representasi numerik fitur genre** dibutuhkan agar data tekstual dapat diproses oleh model neural network. **One-hot encoding genre** memastikan bahwa genre dapat diterima sebagai input numerik yang mudah diolah.
-- **Penggabungan genre dan deskripsi** dengan **hstack** memungkinkan pembuatan fitur gabungan yang menggabungkan dua aspek penting dari film: genre dan deskripsi. Hal ini menghasilkan fitur yang lebih kaya dan dapat digunakan untuk menghitung **cosine similarity** yang lebih akurat dalam **Content-Based Filtering**.
-- **Mapping indeks numerik untuk user dan movie** adalah standar dalam pemodelan embedding sehingga input dapat diterima oleh layer embedding secara efisien.
-- **Pembuatan matriks genre** untuk model **Collaborative Filtering** meningkatkan kualitas representasi genre film berdasarkan **embedding**, yang membantu model memahami hubungan antar film dengan lebih baik.
-- **Split train-test** penting untuk melakukan evaluasi yang objektif dan menghindari overfitting pada model. Pembagian ini memastikan bahwa data yang digunakan untuk testing tidak digunakan saat training.
-- **Normalisasi rating** membantu mencegah gradient yang tidak stabil dan mempercepat proses optimasi selama training, meningkatkan stabilitas model dan mempercepat konvergensi.
+#### Content-Based Filtering
 
-Tahapan ini memastikan data yang digunakan bersih, konsisten, dan sesuai format yang dibutuhkan oleh model sistem rekomendasi.
+1. **Pembuatan fitur 'description'** : Menggabungkan informasi judul dan genre untuk memperkaya representasi konten film.
+
+2. **Konversi genre ke list** : Mempermudah pemrosesan data genre yang awalnya berupa string.
+
+3. **One-hot encoding genre** : Mengubah data genre menjadi format numerik yang bisa digunakan oleh model.
+
+4. **Ekstraksi deskripsi dengan TF-IDF** : Mengubah teks deskripsi menjadi vektor numerik berdasarkan frekuensi kata.
+
+5. **Penggabungan fitur genre dan deskripsi** : Menghasilkan fitur gabungan yang lebih informatif untuk menghitung kemiripan film.
+
+6. **Pembuatan indeks pencarian film** : Memudahkan pencarian cepat film berdasarkan judul.
+
+7. **Perhitungan cosine similarity** : Mengukur kemiripan antar film berdasarkan fitur gabungan.
+
+---
+
+#### Collaborative Filtering
+
+1. **Preprocessing genre** : Mengubah genre menjadi format yang bisa digunakan untuk fitur tambahan.
+
+2. **Mapping user dan movie ke indeks** : Menyesuaikan data agar dapat digunakan dalam layer embedding.
+
+3. **Pembuatan matriks genre** : Menyediakan input fitur genre untuk setiap film dalam model.
+
+4. **Pembagian data train dan test** : Memastikan evaluasi model dilakukan pada data yang belum dilatih.
+
+5. **Normalisasi rating** : Menstabilkan proses training dan mempercepat konvergensi model.
+
+6. **Penyiapan data genre untuk training dan testing** : Memastikan genre film tersedia sesuai dengan data yang digunakan untuk training dan testing.
 
 ## Modeling
 
